@@ -4,3 +4,4 @@
 4. Add grasp service with tolerances
 5. Add timeout to detect problems with an operation
 6. Add dedicated thread for driver_logic flags observer
+7. Add dependency to transitions

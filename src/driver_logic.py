@@ -28,6 +28,7 @@ class DriverLogic(object):
 			{'name': 'referencing', 'on_enter': 'exec_referencing'},
 			{'name': 'closing_before_opening', 'on_enter': 'exec_closing_before_opening'},
 	  		{'name': 'opening', 'on_enter': 'exec_opening'},
+	  		{'name': 'wait_for_opening'},
 			{'name': 'opening_before_close', 'on_enter': 'exec_opening_before_closing'},
 	  		{'name': 'closing', 'on_enter': 'exec_closing'},
 			{'name': 'opening_before_grasp', 'on_enter': 'exec_opening_before_closing'},
@@ -73,6 +74,7 @@ class DriverLogic(object):
 
 		# opening state
 		{ 'trigger': 'on_open', 'source': 'op_opening', 'dest': 'st_open', 'before': 'operation_successful'},
+		{ 'trigger': 'on_closed', 'source': 'op_opening', 'dest': 'op_wait_for_opening'},
 		{ 'trigger': 'on_holding', 'source': 'op_opening', 'dest': 'st_holding', 'before': 'claws_blocked'}, # opening failed because blocked by object
 
 		# closing state
@@ -82,6 +84,9 @@ class DriverLogic(object):
 		# grasping state
 		{ 'trigger': 'on_holding', 'source': 'op_grasping', 'dest': 'st_holding', 'before': 'operation_successful'},
 		{ 'trigger': 'on_closed', 'source': 'op_grasping', 'dest': 'st_closed', 'before': 'no_object'}, # failed because no object to grasp
+
+		# wait_for_opening state
+		{ 'trigger': 'on_open', 'source': 'op_wait_for_opening', 'dest': 'st_open', 'before': 'operation_successful'},
 
 		# closing_before_opening state
 		['on_closed', 'op_closing_before_opening', 'op_opening'],
