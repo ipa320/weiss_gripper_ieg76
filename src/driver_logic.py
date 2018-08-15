@@ -48,6 +48,7 @@ class DriverLogic(object):
 		['do_reference', 'not_initialized', 'op_referencing'],
 
 		# inactive state
+		['do_reference', 'st_inactive', 'op_referencing'],
 		['do_open', 'st_inactive', 'op_opening'],
 		['do_close', 'st_inactive', 'op_closing'],
 		{ 'trigger': 'do_grasp', 'source': 'st_inactive', 'dest': 'op_grasping', 'conditions': 'can_grasp'},

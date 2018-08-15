@@ -1,7 +1,5 @@
-1. Allow reference from inactive state
-2. Remove old msgs
+(1. Allow reference from inactive state)
 3. Track state changes in reference (first not_initialized, then inactive)
 4. Add grasp service with tolerances
 5. Add timeout to detect problems with an operation
 6. Add dedicated thread for driver_logic flags observer
-7. Add dependency to transitions
