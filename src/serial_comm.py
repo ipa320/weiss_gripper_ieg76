@@ -46,7 +46,11 @@ def create_send_payload(command, grasping_force = 100, opening_position = 29.50,
 		closing_pos_hex_byte1 = closing_pos_hex[-2:]
 		send_cmd = "SETPARAM(" + str(grasp_index) + ", 1, [" + closing_pos_hex_byte0[0:2] + "," + closing_pos_hex_byte1[0:2] + "])\n"
 	else:
-		cmd_dict = {"query":"ID?\n", "activate":"PDOUT=[02,00]\n", "operate":"OPERATE()\n", "reference":"PDOUT=[07,00]\n", "deactivate":"PDOUT=[00,00]\n", "fallback":"FALLBACK(1)\n", "mode":"MODE?\n", "restart":"RESTART()\n", "reset":"PDOUT=[00,00]\n"}
+		cmd_dict = {"query":"ID?\n", "activate":"PDOUT=[02,00]\n", "operate":"OPERATE()\n", "reference":"PDOUT=[07,00]\n",
+					"deactivate":"PDOUT=[00,00]\n", "fallback":"FALLBACK(1)\n", "mode":"MODE?\n", "restart":"RESTART()\n",
+					"reset":"PDOUT=[00,00]\n", "get_vendor_name","GETPARAM(16)", "get_vendor_text","GETPARAM(17)",
+					"get_product_name","GETPARAM(18)", "get_product_id","GETPARAM(19)", "get_product_text","GETPARAM(20)",
+					"get_serial_no","GETPARAM(21)", "get_device_status","GETPARAM(36)", "get_detailed_device_status","GETPARAM(37)"}
 		# Query if command is known
 		if not(command in cmd_dict):
 			rospy.logerr("Command not recognized")
@@ -83,6 +87,32 @@ class SerialPortComm(threading.Thread):
 
 		self.driver_shutdown = False
 		self.open_serial_port(serial_port, serial_timeout)
+
+		rospy.logdebug("get_vendor_name")
+		self.send_command("get_vendor_name")
+		time.sleep(0.5)
+		rospy.logdebug("get_vendor_text")
+		self.send_command("get_vendor_text")
+		time.sleep(0.5)
+		rospy.logdebug("get_product_name")
+		self.send_command("get_product_name")
+		time.sleep(0.5)
+		rospy.logdebug("get_product_id")
+		self.send_command("get_product_id")
+		time.sleep(0.5)
+		rospy.logdebug("get_product_text")
+		self.send_command("get_product_text")
+		time.sleep(0.5)
+		rospy.logdebug("get_serial_no")
+		self.send_command("get_serial_no")
+		time.sleep(0.5)
+		rospy.logdebug("get_device_status")
+		self.send_command("get_device_status")
+		time.sleep(0.5)
+		rospy.logdebug("get_detailed_device_status")
+		self.send_command("get_detailed_device_status")
+		time.sleep(0.5)
+
 		self.initialize_gripper()
 
 		self.changing_settings = threading.Lock() # only one setting at a time
@@ -259,6 +289,7 @@ class SerialPortComm(threading.Thread):
 	def parse_incoming_data_block(self, read_data_hexstr):
 		incoming_msgs = read_data_hexstr.splitlines()#returns a list of incoming messages without the line break "\n"
 		for msg in incoming_msgs:
+			print "IN: ", msg
 			if len(msg) == self.flags_msg_length:
 				self.extract_flags(msg)
 			elif len(msg) == self.set_single_param_msg_length:
