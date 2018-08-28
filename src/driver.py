@@ -88,6 +88,22 @@ class Driver(object):
 		self.log_reply(reply)
 		return reply
 
+	def handle_ack(self, req):
+		rospy.loginfo("Ack error")
+		reply = TriggerResponse()
+		self.driver_logic.service_called(transition="do_ack", params=req, trigger_response=reply)
+		reply.message = 'Ack error ' + reply.message
+		self.log_reply(reply)
+		return reply
+
+	def handle_ref_ack(self, req):
+		rospy.loginfo("Ack referencing error")
+		reply = TriggerResponse()
+		self.driver_logic.service_called(transition="do_ref_ack", params=req, trigger_response=reply)
+		reply.message = 'Ack referencing error ' + reply.message
+		self.log_reply(reply)
+		return reply
+
 	def shutdown_handler(self):
 		self.states_publisher_thread.shutdown()
 		self.serial_port_comm.shutdown()
@@ -102,6 +118,14 @@ class Driver(object):
 		self.states_publisher_thread.start()
 		rospy.logdebug("Threads started.")
 
+		rospy.loginfo('Receiving info about gripper')
+		self.serial_port_comm.get_gripper_info()
+		print self.serial_port_comm.gripper_info
+		serial_no = rospy.get_param("~serial_no", None)
+		if not serial_no is None and serial_no != int(self.serial_port_comm.gripper_info['serial_no']):
+			rospy.logerr('Serial no is {}, but requested is {}'.format(self.serial_port_comm.gripper_info['serial_no'], serial_no))
+			return
+
 		grasp_force = rospy.get_param("~grasping_force", 100)
 		rospy.loginfo('Setting force to {}%...'.format(grasp_force))
 		while True:
@@ -113,7 +137,8 @@ class Driver(object):
 		serv_ref = rospy.Service('~open', Move, self.handle_open)
 		serv_ref = rospy.Service('~close', Move, self.handle_close)
 		serv_ref = rospy.Service('~grasp', Move, self.handle_grasp)
-		# serv_ref = rospy.Service('ack', Trigger, self.handle_ack)
+		serv_ref = rospy.Service('~ack', Trigger, self.handle_ack)
+		serv_ref = rospy.Service('~ref_ack', Trigger, self.handle_ref_ack)
 		serv_ref = rospy.Service('~set_force', SetForce, self.handle_set_force)
 
 		rospy.loginfo("Ready to receive requests.")

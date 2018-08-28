@@ -18,13 +18,16 @@ from transitions.extensions import LockedHierarchicalMachine as Machine
 
 class DriverLogic(object):
 	states = [
-		'not_initialized', 'fault', 'other_fault',
+		'not_initialized', 'fault', 'ref_fault', 'other_fault',
 
 		{'name': 'st', 'children':[
 		  'inactive', 'open', 'closed', 'holding']
 		},
 
 		{'name': 'op', 'on_exit': 'operation_finished', 'children':[
+			{'name': 'deactivating_before_activate', 'on_enter': 'exec_deactivating'},
+			{'name': 'activating', 'on_enter': 'exec_activating'},
+			{'name': 'deactivating', 'on_enter': 'exec_deactivating'},
 			{'name': 'referencing', 'on_enter': 'exec_referencing'},
 			{'name': 'closing_before_opening', 'on_enter': 'exec_closing_before_opening'},
 	  		{'name': 'opening', 'on_enter': 'exec_opening'},
@@ -37,15 +40,18 @@ class DriverLogic(object):
 	]
 
 	transitions = [
-		# uninitialized, fault and other_fault state
-		['on_inactive', ['not_initialized', 'fault', 'other_fault'], 'st_inactive'],
-		['on_open', ['not_initialized', 'fault', 'other_fault'], 'st_open'],
-		['on_closed', ['not_initialized', 'fault', 'other_fault'], 'st_closed'],
-		['on_holding', ['not_initialized', 'fault', 'other_fault'], 'st_holding'],
+		# uninitialized, fault, ref_fault and other_fault state
+		['on_inactive', ['not_initialized', 'fault', 'ref_fault', 'other_fault'], 'st_inactive'],
+		['on_open', ['not_initialized', 'fault', 'ref_fault', 'other_fault'], 'st_open'],
+		['on_closed', ['not_initialized', 'fault', 'ref_fault', 'other_fault'], 'st_closed'],
+		['on_holding', ['not_initialized', 'fault', 'ref_fault', 'other_fault'], 'st_holding'],
 		['on_fault', ['not_initialized', 'other_fault'], 'fault'],
-		['on_other_fault', ['not_initialized', 'fault'], 'other_fault'],
-		['on_not_initialized', ['fault', 'other_fault'], 'not_initialized'],
+		['on_other_fault', ['not_initialized', 'fault', 'ref_fault'], 'other_fault'],
+		['on_not_initialized', ['fault', 'ref_fault', 'other_fault'], 'not_initialized'],
+
 		['do_reference', 'not_initialized', 'op_referencing'],
+		['do_ack', 'fault', 'op_deactivating_before_activate'],
+		['do_ref_ack', 'ref_fault', 'op_deactivating'],
 
 		# inactive state
 		['do_reference', 'st_inactive', 'op_referencing'],
@@ -70,8 +76,18 @@ class DriverLogic(object):
 		{ 'trigger': 'do_open', 'source': 'st_holding', 'dest': 'op_opening', 'conditions': 'can_move_while_holding'},
 		{ 'trigger': 'do_close', 'source': 'st_holding', 'dest': 'op_opening_before_close', 'conditions': 'can_move_while_holding'},
 
+		# deactivating_before_activate state (part of do_ack)
+		['on_inactive', 'op_deactivating_before_activate', 'op_activating'],
+
+		# activating state (part of do_ack)
+		{ 'trigger': 'on_open', 'source': 'op_activating', 'dest': 'st_open', 'before': 'operation_successful'},
+
+		# deactivating state (part of do_ref_ack)
+		{ 'trigger': 'on_not_initialized', 'source': 'op_deactivating', 'dest': 'not_initialized', 'before': 'operation_successful'},
+
 		# referencing state
 		{ 'trigger': 'on_inactive', 'source': 'op_referencing', 'dest': 'st_inactive', 'before': 'operation_successful'},
+		{ 'trigger': 'on_fault', 'source': 'op_referencing', 'dest': 'ref_fault', 'before': 'unexpected_state_change'},
 
 		# opening state
 		{ 'trigger': 'on_open', 'source': 'op_opening', 'dest': 'st_open', 'before': 'operation_successful'},
@@ -270,6 +286,14 @@ class DriverLogic(object):
 			self.operation_response.success = False
 			self.operation_response.message += 'Grasping range too little. Move by at least {}mm.. Current pos: {}, commanded pos: {}'.format(least_movement, self.gripper_pos, self.operation_params.position)
 			return False
+
+	def exec_activating(self):
+		rospy.loginfo('State: {}'.format(self.state))
+		self.serial_port_comm.send_command_synced("activate")
+
+	def exec_deactivating(self):
+		rospy.loginfo('State: {}'.format(self.state))
+		self.serial_port_comm.send_command_synced("deactivate")
 
 	def exec_referencing(self):
 		rospy.loginfo('State: {}'.format(self.state))

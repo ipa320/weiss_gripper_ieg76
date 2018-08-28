@@ -23,7 +23,7 @@
             </visual>
         </link>
 
-        <joint name="${prefix}jaw_position" type="prismatic">
+        <!-- <joint name="${prefix}jaw_position" type="prismatic">
             <parent link="${prefix}base"/>
             <child link="${prefix}finger_right"/>
             <origin rpy="0.0 0.0 ${pi}" xyz="0.0 -0.0115 0.045"/>
@@ -40,7 +40,7 @@
             <limit effort="100.0" lower="0.0" upper="0.01" velocity="100.0"/>
             <mimic joint="${prefix}jaw_position" multiplier="1"/>
         </joint>
-        <link name="${prefix}finger_left"/>
+        <link name="${prefix}finger_left"/> -->
 
         <joint name="${prefix}${prefix}center" type="fixed">
             <parent link="${parent}"/>
