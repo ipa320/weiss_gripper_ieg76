@@ -1,6 +1,3 @@
-(1. Allow reference from inactive state)
-3. Track state changes in reference (first not_initialized, then inactive)
 4. Add grasp service with tolerances
-5. Add timeout to detect problems with an operation
 6. Add dedicated thread for driver_logic flags observer
-8. Allow manual deactivation of gripper
+10. Find USB port that is fitting for the given serial id

@@ -24,11 +24,13 @@ class DriverLogic(object):
 		  'inactive', 'open', 'closed', 'holding']
 		},
 
-		{'name': 'op', 'on_exit': 'operation_finished', 'children':[
+		{'name': 'op', 'on_enter': 'operation_started', 'on_exit': 'operation_finished', 'children':[
 			{'name': 'deactivating_before_activate', 'on_enter': 'exec_deactivating'},
 			{'name': 'activating', 'on_enter': 'exec_activating'},
 			{'name': 'deactivating', 'on_enter': 'exec_deactivating'},
 			{'name': 'referencing', 'on_enter': 'exec_referencing'},
+			{'name': 'opening_before_referencing', 'on_enter': 'exec_opening_before_referencing'},
+			{'name': 'wait_for_referenced'},
 			{'name': 'closing_before_opening', 'on_enter': 'exec_closing_before_opening'},
 	  		{'name': 'opening', 'on_enter': 'exec_opening'},
 	  		{'name': 'wait_for_opening'},
@@ -51,28 +53,32 @@ class DriverLogic(object):
 
 		['do_reference', 'not_initialized', 'op_referencing'],
 		['do_ack', 'fault', 'op_deactivating_before_activate'],
-		['do_ref_ack', 'ref_fault', 'op_deactivating'],
+		['do_ack', 'ref_fault', 'op_deactivating'],
 
 		# inactive state
-		['do_reference', 'st_inactive', 'op_referencing'],
+		['do_reference', 'st_inactive', 'op_opening_before_referencing'],
+		{ 'trigger': 'do_deactivate', 'source': 'st_inactive', 'dest': '=', 'before': 'operation_successful', 'after': 'operation_finished'},
 		['do_open', 'st_inactive', 'op_opening'],
 		['do_close', 'st_inactive', 'op_closing'],
 		{ 'trigger': 'do_grasp', 'source': 'st_inactive', 'dest': 'op_grasping', 'conditions': 'can_grasp'},
 
 		# open state
 		['do_reference', 'st_open', 'op_referencing'],
+		['do_deactivate', 'st_open', 'op_deactivating'],
 		['do_open', 'st_open', 'op_closing_before_opening'],
 		['do_close', 'st_open', 'op_closing'],
 		{ 'trigger': 'do_grasp', 'source': 'st_open', 'dest': 'op_grasping', 'conditions': 'can_grasp'},
 
 		# closed state
 		['do_reference', 'st_closed', 'op_referencing'],
+		['do_deactivate', 'st_closed', 'op_deactivating'],
 		['do_open', 'st_closed', 'op_opening'],
 		['do_close', 'st_closed', 'op_opening_before_close'],
 		{ 'trigger': 'do_grasp', 'source': 'st_closed', 'dest': 'op_opening_before_grasp', 'conditions': 'can_grasp'},
 
 		# holding state
 		['do_reference', 'st_holding', 'op_referencing'],
+		['do_deactivate', 'st_holding', 'op_deactivating'],
 		{ 'trigger': 'do_open', 'source': 'st_holding', 'dest': 'op_opening', 'conditions': 'can_move_while_holding'},
 		{ 'trigger': 'do_close', 'source': 'st_holding', 'dest': 'op_opening_before_close', 'conditions': 'can_move_while_holding'},
 
@@ -82,12 +88,17 @@ class DriverLogic(object):
 		# activating state (part of do_ack)
 		{ 'trigger': 'on_open', 'source': 'op_activating', 'dest': 'st_open', 'before': 'operation_successful'},
 
-		# deactivating state (part of do_ref_ack)
-		{ 'trigger': 'on_not_initialized', 'source': 'op_deactivating', 'dest': 'not_initialized', 'before': 'operation_successful'},
+		# deactivating state (part of do_ack for referencing errors)
+		{ 'trigger': 'on_inactive', 'source': 'op_deactivating', 'dest': 'st_inactive', 'before': 'operation_successful'},
 
 		# referencing state
 		{ 'trigger': 'on_inactive', 'source': 'op_referencing', 'dest': 'st_inactive', 'before': 'operation_successful'},
+		{ 'trigger': 'on_not_initialized', 'source': 'op_referencing', 'dest': 'op_wait_for_referenced'},
 		{ 'trigger': 'on_fault', 'source': 'op_referencing', 'dest': 'ref_fault', 'before': 'unexpected_state_change'},
+
+		# wait_for_referenced state
+		{ 'trigger': 'on_inactive', 'source': 'op_wait_for_referenced', 'dest': 'st_inactive', 'before': 'operation_successful'},
+		{ 'trigger': 'on_fault', 'source': 'op_wait_for_referenced', 'dest': 'ref_fault', 'before': 'unexpected_state_change'},
 
 		# opening state
 		{ 'trigger': 'on_open', 'source': 'op_opening', 'dest': 'st_open', 'before': 'operation_successful'},
@@ -114,6 +125,10 @@ class DriverLogic(object):
 		{ 'trigger': 'on_holding', 'source': 'op_opening_before_close', 'dest': 'st_holding', 'before': 'claws_blocked'}, # failed because blocked by object
 
 		['on_open', 'op_opening_before_grasp', 'op_grasping'],
+
+		# opening_before_reference state
+		['on_open', 'op_opening_before_referencing', 'op_referencing'],
+		{ 'trigger': 'on_holding', 'source': 'op_opening_before_referencing', 'dest': 'st_holding', 'before': 'claws_blocked'}, # failed because blocked by object
 
 		# default transitions for unexpected state changes
 		{ 'trigger': 'on_inactive', 'source': '*', 'dest': 'st_inactive', 'before': 'unexpected_state_change'},
@@ -143,6 +158,8 @@ class DriverLogic(object):
 		self.async_operation_finished = threading.Condition()
 		self.no_spurious_wakeup = False
 
+		self.op_timeout_timer = None
+
 		self.old_flag_signaled = {"OPEN_SIGNALED":False, "CLOSED_SIGNALED":False, "HOLDING_SIGNALED":False,
 								  "FAULT_SIGNALED":False, "IDLE_SIGNALED":False, "OTHER_FAULT_SIGNALED":False,
 								  "NOT_INITIALIZED_SIGNALED":True}
@@ -169,7 +186,12 @@ class DriverLogic(object):
 					self.operation_params = None
 					self.operation_response = None
 
+	def operation_started(self):
+		self.op_timeout_timer = rospy.Timer(rospy.Duration(3.0), self.op_timeout, oneshot=True)
+
 	def operation_finished(self):
+		if self.op_timeout_timer:
+			self.op_timeout_timer.shutdown()
 		with self.async_operation_finished:
 			self.no_spurious_wakeup = True
 			self.async_operation_finished.notify()
@@ -190,6 +212,24 @@ class DriverLogic(object):
 			self.operation_response.success = False
 			self.operation_response.message += 'Unexpected state change.'
 		rospy.logerr('Unexpected state change.')
+
+	def op_timeout(self, *params):
+		# an operation timed out -> leave the operation state and go to the currently active gripper state
+		self.operation_response.success = False
+		self.operation_response.message += 'Operation timed out.'
+		rospy.logerr('Operation timed out.')
+
+		self.state_machine_context.acquire(blocking=True)
+
+		self.old_flag_signaled["OTHER_FAULT_SIGNALED"] = False
+		self.old_flag_signaled["FAULT_SIGNALED"] = False
+		self.old_flag_signaled["IDLE_SIGNALED"] = False
+		self.old_flag_signaled["OPEN_SIGNALED"] = False
+		self.old_flag_signaled["CLOSED_SIGNALED"] = False
+		self.old_flag_signaled["HOLDING_SIGNALED"] = False
+		self.old_flag_signaled["NOT_INITIALIZED_SIGNALED"] = False
+
+		self.state_machine_context.release()
 
 	def get_err_msg(self, state):
 		operation_err_msg_from_state = {'not_initialized': 'Reference the gripper before usage. ',
@@ -333,7 +373,7 @@ class DriverLogic(object):
 		rospy.loginfo('Trying to set opening_before_closing positions...')
 		rospy.loginfo('State: {}'.format(self.state))
 		self.set_positions(opening_pos=self.gripper_pos, closing_pos=self.gripper_pos)
-		rospy.loginfo('Prepening positions set.')
+		rospy.loginfo('Preopening positions set.')
 		self.serial_port_comm.send_command_synced("open")
 
 	def exec_closing_before_opening(self):
@@ -342,3 +382,10 @@ class DriverLogic(object):
 		self.set_positions(opening_pos=self.gripper_pos, closing_pos=self.gripper_pos)
 		rospy.loginfo('Closing_before_opening positions set.')
 		self.serial_port_comm.send_command_synced("close")
+
+	def exec_opening_before_referencing(self):
+		rospy.loginfo('Trying to set opening_before_referencing positions...')
+		rospy.loginfo('State: {}'.format(self.state))
+		self.set_positions(opening_pos=self.gripper_pos, closing_pos=self.gripper_pos)
+		rospy.loginfo('Preopening positions set.')
+		self.serial_port_comm.send_command_synced("open")

@@ -96,11 +96,11 @@ class Driver(object):
 		self.log_reply(reply)
 		return reply
 
-	def handle_ref_ack(self, req):
-		rospy.loginfo("Ack referencing error")
+	def handle_deactivate(self, req):
+		rospy.loginfo("Deactivate gripper")
 		reply = TriggerResponse()
-		self.driver_logic.service_called(transition="do_ref_ack", params=req, trigger_response=reply)
-		reply.message = 'Ack referencing error ' + reply.message
+		self.driver_logic.service_called(transition="do_deactivate", params=req, trigger_response=reply)
+		reply.message = 'Deactivating ' + reply.message
 		self.log_reply(reply)
 		return reply
 
@@ -138,8 +138,8 @@ class Driver(object):
 		serv_ref = rospy.Service('~close', Move, self.handle_close)
 		serv_ref = rospy.Service('~grasp', Move, self.handle_grasp)
 		serv_ref = rospy.Service('~ack', Trigger, self.handle_ack)
-		serv_ref = rospy.Service('~ref_ack', Trigger, self.handle_ref_ack)
 		serv_ref = rospy.Service('~set_force', SetForce, self.handle_set_force)
+		serv_ref = rospy.Service('~deactivate', Trigger, self.handle_deactivate)
 
 		rospy.loginfo("Ready to receive requests.")
 

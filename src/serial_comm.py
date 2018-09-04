@@ -46,7 +46,7 @@ def create_send_payload(command, grasping_force = 100, opening_position = 29.50,
 		closing_pos_hex_byte1 = closing_pos_hex[-2:]
 		send_cmd = "SETPARAM(" + str(grasp_index) + ", 1, [" + closing_pos_hex_byte0[0:2] + "," + closing_pos_hex_byte1[0:2] + "])\n"
 	else:
-		cmd_dict = {"query":"ID?\n", "activate":"PDOUT=[02,00]\n", "operate":"OPERATE()\n", "reference":"PDOUT=[07,00]\n",
+		cmd_dict = {"query":"ID?\n", "activate":"PDOUT=[02,00]\n", "operate":"OPERATE()\n", "reference":"PDOUT=[06,00]\n",
 					"deactivate":"PDOUT=[00,00]\n", "fallback":"FALLBACK(1)\n", "mode":"MODE?\n", "restart":"RESTART()\n",
 					"reset":"PDOUT=[00,00]\n", "get_vendor_name":"GETPARAM(16, 0)\n", "get_vendor_text":"GETPARAM(17, 0)\n",
 					"get_product_name":"GETPARAM(18, 0)\n", "get_product_id":"GETPARAM(19, 0)\n", "get_product_text":"GETPARAM(20, 0)\n",
@@ -88,8 +88,8 @@ class SerialPortComm(threading.Thread):
 		self.serial_write_sync = threading.Lock()
 
 		self.driver_shutdown = False
-		self.open_serial_port(serial_port, serial_timeout)
-		self.initialize_gripper()
+		self.serial_port = serial_port
+		self.serial_timeout = serial_timeout
 
 		self.changing_settings = threading.Lock() # only one setting at a time
 		self.setting_changed_successfully = False
@@ -103,8 +103,10 @@ class SerialPortComm(threading.Thread):
 	def open_serial_port(self, serial_port, serial_timeout):
 		self.serial.port = serial_port
 		self.serial.timeout = serial_timeout
+		retries = 3
 		while not(self.driver_shutdown):
 			try:
+				retries -= 1
 				self.serial.open()
 				self.serial.flushInput()
 				self.serial.flushOutput()
@@ -114,6 +116,8 @@ class SerialPortComm(threading.Thread):
 				rospy.logerr("\terror opening serial port %s : %s", serial_port, e)
 				rospy.loginfo("Retrying to open the serial port %s...", serial_port)
 				time.sleep(1)
+				if retries == 0:
+					raise
 
 		rospy.loginfo("Serial port %s opened: %s", self.serial.port, self.serial.isOpen())
 
@@ -318,6 +322,10 @@ class SerialPortComm(threading.Thread):
 
 	def run(self):
 		rospy.logdebug("SerialPortComm.run()")
+
+		self.open_serial_port(self.serial_port, self.serial_timeout)
+		self.initialize_gripper()
+
 		#read from port
 		connection_errors_no = 0
 		incoming_bytes_no = 0
