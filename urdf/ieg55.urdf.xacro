@@ -42,7 +42,7 @@
         </joint>
         <link name="${prefix}finger_left"/> -->
 
-        <joint name="${prefix}${prefix}center" type="fixed">
+        <joint name="${prefix}center" type="fixed">
             <parent link="${parent}"/>
             <child link="${prefix}center"/>
             <origin rpy="0 0 0" xyz="0 0 0.045"/>

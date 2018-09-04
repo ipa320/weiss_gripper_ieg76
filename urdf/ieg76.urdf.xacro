@@ -2,7 +2,7 @@
 <robot name="ieg76" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
     <xacro:macro name="ieg76" params="parent prefix *origin">
-        <joint name="$${prefix}mount" type="fixed">
+        <joint name="${prefix}mount" type="fixed">
             <insert_block name="origin"/>
             <parent link="${parent}"/>
             <child link="${prefix}base"/>
