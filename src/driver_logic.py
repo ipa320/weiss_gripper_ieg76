@@ -1,17 +1,7 @@
 #!/usr/bin/env python
-# import roslib
-# import struct
-# import time
-# import serial
 import rospy
 import numpy as np
 import threading
-# import diagnostic_updater
-# from serial import SerialException
-# from std_srvs.srv import Trigger, TriggerResponse
-# from weiss_gripper_ieg76.srv import *
-# from sensor_msgs.msg import JointState
-# from diagnostic_msgs.msg import DiagnosticStatus
 import transitions
 from transitions.extensions import LockedHierarchicalMachine as Machine
 

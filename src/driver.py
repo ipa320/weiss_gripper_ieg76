@@ -37,9 +37,16 @@ class Driver(object):
 		self.log_reply(reply)
 		return reply
 
+	def relative_to_absolute(self, req):
+		if req.relative:
+			if self.driver_logic.gripper_pos is None:
+				raise ValueError("Relative position demanded, but gripper position was not received yet.")
+			req.position = self.driver_logic.gripper_pos + req.position
+
 	def handle_open(self, req):
 		rospy.loginfo("Opening")
 		reply = MoveResponse()
+		self.relative_to_absolute(req)
 		if not self.check_position(req.position):
 			reply.success = False
 			reply.message = 'Opening failed. Position must be 0.0(mm) <= position <= 30.0(mm).'
@@ -52,6 +59,7 @@ class Driver(object):
 	def handle_close(self, req):
 		rospy.loginfo("Closing")
 		reply = MoveResponse()
+		self.relative_to_absolute(req)
 		if not self.check_position(req.position):
 			reply.success = False
 			reply.message = 'Closing failed. Position must be 0.0(mm) <= position <= 30.0(mm).'
@@ -64,6 +72,7 @@ class Driver(object):
 	def handle_grasp(self, req):
 		rospy.loginfo("Grasping")
 		reply = MoveResponse()
+		self.relative_to_absolute(req)
 		if not self.check_position(req.position):
 			reply.success = False
 			reply.message = 'Grasping failed. Position must be 0.0(mm) <= position <= 30.0(mm).'

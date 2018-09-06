@@ -1,16 +1,10 @@
 #!/usr/bin/env python
-# import roslib
 import struct
 import time
 import serial
 import rospy
 import threading
-# import diagnostic_updater
 from serial import SerialException
-# from std_srvs.srv import Trigger, TriggerResponse
-# from weiss_gripper_ieg76.srv import *
-# from sensor_msgs.msg import JointState
-# from diagnostic_msgs.msg import DiagnosticStatus
 
 
 def create_send_payload(command, grasping_force = 100, opening_position = 29.50, closing_position = 0.5):
@@ -146,7 +140,7 @@ class SerialPortComm(threading.Thread):
 				self.send_command("reset")
 				time.sleep(0.5)
 				self.input_data_unavailable = 0
-				rospy.loginfo("Ready to receive requests.")
+				rospy.loginfo("Gripper initialized.")
 			except Exception as e:
 				rospy.logerr("Error reading from the serial port while (re)connect: %s", e)
 
