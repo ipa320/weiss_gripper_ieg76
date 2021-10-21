@@ -129,7 +129,7 @@ class Driver(object):
 
 		rospy.loginfo('Receiving info about gripper')
 		self.serial_port_comm.get_gripper_info()
-		print self.serial_port_comm.gripper_info
+		print(self.serial_port_comm.gripper_info)
 		serial_no = rospy.get_param("~serial_no", None)
 		if not serial_no is None and serial_no != int(self.serial_port_comm.gripper_info['serial_no']):
 			rospy.logerr('Serial no is {}, but requested is {}'.format(self.serial_port_comm.gripper_info['serial_no'], serial_no))
