@@ -252,7 +252,7 @@ class SerialPortComm(threading.Thread):
 		elif setting_num == "21":
 			self.gripper_info['serial_no'] = info
 		else:
-			print "setting num {} not expected".format(setting_num)
+			print("setting num {} not expected".format(setting_num))
 		with self.setting_received:
 			self.setting_received.notify()
 
@@ -344,7 +344,7 @@ class SerialPortComm(threading.Thread):
 					self.input_data_unavailable = 0
 					input_data = self.serial.read(self.serial.inWaiting())
 					data_str = input_data.decode('ascii') #read the bytes and convert from binary array to ASCII
-					if (incoming_bytes_no <> 22):
+					if (incoming_bytes_no != 22):
 						rospy.logdebug("incoming_bytes_no = %d: %s", incoming_bytes_no, data_str)
 					self.parse_incoming_data_block(data_str)
 				else:
