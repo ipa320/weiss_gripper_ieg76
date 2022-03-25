@@ -73,7 +73,8 @@ class StatesPublisher(threading.Thread):
 	def publish_states(self):
 		self.joint_state_msg.header.stamp = rospy.Time.now()
 		self.joint_state_msg.position = []
-		self.joint_state_msg.position.append(self.current_flags_dict["POS"])
+		self.joint_state_msg.position.append(
+			self.current_flags_dict["POS"]*0.001/2.0)
 		try:
 			self.pub_freq_time_diag.publish(self.joint_state_msg)
 		except:
