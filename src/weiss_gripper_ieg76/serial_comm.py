@@ -1,16 +1,9 @@
-#!/usr/bin/env python
-# import roslib
 import struct
 import time
 import serial
 import rospy
 import threading
-# import diagnostic_updater
 from serial import SerialException
-# from std_srvs.srv import Trigger, TriggerResponse
-# from weiss_gripper_ieg76.srv import *
-# from sensor_msgs.msg import JointState
-# from diagnostic_msgs.msg import DiagnosticStatus
 
 
 def create_send_payload(command, grasping_force = 100, opening_position = 29.50, closing_position = 0.5):
@@ -46,7 +39,11 @@ def create_send_payload(command, grasping_force = 100, opening_position = 29.50,
 		closing_pos_hex_byte1 = closing_pos_hex[-2:]
 		send_cmd = "SETPARAM(" + str(grasp_index) + ", 1, [" + closing_pos_hex_byte0[0:2] + "," + closing_pos_hex_byte1[0:2] + "])\n"
 	else:
-		cmd_dict = {"query":"ID?\n", "activate":"PDOUT=[02,00]\n", "operate":"OPERATE()\n", "reference":"PDOUT=[07,00]\n", "deactivate":"PDOUT=[00,00]\n", "fallback":"FALLBACK(1)\n", "mode":"MODE?\n", "restart":"RESTART()\n", "reset":"PDOUT=[00,00]\n"}
+		cmd_dict = {"query":"ID?\n", "activate":"PDOUT=[02,00]\n", "operate":"OPERATE()\n", "reference":"PDOUT=[06,00]\n",
+					"deactivate":"PDOUT=[00,00]\n", "fallback":"FALLBACK(1)\n", "mode":"MODE?\n", "restart":"RESTART()\n",
+					"reset":"PDOUT=[00,00]\n", "get_vendor_name":"GETPARAM(16, 0)\n", "get_vendor_text":"GETPARAM(17, 0)\n",
+					"get_product_name":"GETPARAM(18, 0)\n", "get_product_id":"GETPARAM(19, 0)\n", "get_product_text":"GETPARAM(20, 0)\n",
+					"get_serial_no":"GETPARAM(21, 0)\n", "get_device_status":"GETPARAM(36, 0)\n", "get_detailed_device_status":"GETPARAM(37, 0)\n"}
 		# Query if command is known
 		if not(command in cmd_dict):
 			rospy.logerr("Command not recognized")
@@ -74,6 +71,8 @@ class SerialPortComm(threading.Thread):
 		self.set_single_param_msg_length = 19
 		self.input_data_unavailable = 0
 
+		self.gripper_info = {}
+
 		self.flags_observers = []
 		self.current_flags_dict = {"POS":0.0, "OPEN_FLAG":0b0, "CLOSED_FLAG":0b0, "HOLDING_FLAG":0b0, "FAULT_FLAG":0b0, "IDLE_FLAG":0b0, "TEMPFAULT_FLAG":0b0, "TEMPWARN_FLAG":0b0, "MAINT_FLAG":0b0}
 		self.grasp_config = {"grasp_config_no": 0, "grasping_force": 100, "closing_position": 0.5, "opening_position": 29.5, "fresh": False}
@@ -82,20 +81,25 @@ class SerialPortComm(threading.Thread):
 		self.serial_write_sync = threading.Lock()
 
 		self.driver_shutdown = False
-		self.open_serial_port(serial_port, serial_timeout)
-		self.initialize_gripper()
+		self.serial_port = serial_port
+		self.serial_timeout = serial_timeout
 
 		self.changing_settings = threading.Lock() # only one setting at a time
 		self.setting_changed_successfully = False
 		self.setting_changed = threading.Condition()
+
+		self.getting_settings = threading.Lock() # only one setting at a time
+		self.setting_received = threading.Condition()
 
 		threading.Thread.__init__(self)
 
 	def open_serial_port(self, serial_port, serial_timeout):
 		self.serial.port = serial_port
 		self.serial.timeout = serial_timeout
+		retries = 3
 		while not(self.driver_shutdown):
 			try:
+				retries -= 1
 				self.serial.open()
 				self.serial.flushInput()
 				self.serial.flushOutput()
@@ -105,6 +109,8 @@ class SerialPortComm(threading.Thread):
 				rospy.logerr("\terror opening serial port %s : %s", serial_port, e)
 				rospy.loginfo("Retrying to open the serial port %s...", serial_port)
 				time.sleep(1)
+				if retries == 0:
+					raise
 
 		rospy.loginfo("Serial port %s opened: %s", self.serial.port, self.serial.isOpen())
 
@@ -133,7 +139,7 @@ class SerialPortComm(threading.Thread):
 				self.send_command("reset")
 				time.sleep(0.5)
 				self.input_data_unavailable = 0
-				rospy.loginfo("Ready to receive requests.")
+				rospy.loginfo("Gripper initialized.")
 			except Exception as e:
 				rospy.logerr("Error reading from the serial port while (re)connect: %s", e)
 
@@ -161,6 +167,7 @@ class SerialPortComm(threading.Thread):
 
 		self.log_debug_flags()
 		try:
+			# print 'Out: ', payload
 			self.serial.write(payload)
 			rospy.logdebug("Message sent to serial port")
 		except SerialException as e:
@@ -177,6 +184,23 @@ class SerialPortComm(threading.Thread):
 				self.send_command_synced(command, grasping_force, opening_position, closing_position)
 				self.setting_changed.wait(3.0)
 				return self.setting_changed_successfully
+
+	def get_setting(self, command):
+		with self.getting_settings: # only get one setting at a time
+			with self.setting_received:
+				self.send_command_synced(command)
+				self.setting_received.wait(10.0)
+
+	def get_gripper_info(self):
+		self.gripper_info = {}
+		self.get_setting("get_vendor_name")
+		self.get_setting("get_vendor_text")
+		self.get_setting("get_product_name")
+		self.get_setting("get_product_id")
+		self.get_setting("get_product_text")
+		self.get_setting("get_serial_no")
+		# self.get_setting("get_device_status")
+		# self.get_setting("get_detailed_device_status")
 
 	def set_force(self, grasping_force = 100):
 		return self.change_setting("set_grasping_force", grasping_force = grasping_force)
@@ -207,6 +231,29 @@ class SerialPortComm(threading.Thread):
 			with self.setting_changed:
 				self.setting_changed_successfully = True
 				self.setting_changed.notify()
+
+	def extract_param(self, read_data_hexstr):
+		# example: "GETPARAM[17][0]=[4d,65,63,68,61,74,72,6f,6e,69,63,73,20,69,6e,20,41,75,74,6f,6d,61,74,69,6f,6e]"
+		# or: "ERR GETPARAM[16][1] 13"
+		setting_num = read_data_hexstr[9:11]
+		info = ''.join(chr(int(x,16)) for x in read_data_hexstr[read_data_hexstr.find('='):][2:-1].split(','))
+		# print setting_num, info
+		if setting_num == "16":
+			self.gripper_info['vendor_name'] = info
+		elif setting_num == "17":
+			self.gripper_info['vendor_text'] = info
+		elif setting_num == "18":
+			self.gripper_info['product_name'] = info
+		elif setting_num == "19":
+			self.gripper_info['product_id'] = info
+		elif setting_num == "20":
+			self.gripper_info['product_text'] = info
+		elif setting_num == "21":
+			self.gripper_info['serial_no'] = info
+		else:
+			print("setting num {} not expected".format(setting_num))
+		with self.setting_received:
+			self.setting_received.notify()
 
 
 	def extract_flags(self, read_data_hexstr):
@@ -259,13 +306,19 @@ class SerialPortComm(threading.Thread):
 	def parse_incoming_data_block(self, read_data_hexstr):
 		incoming_msgs = read_data_hexstr.splitlines()#returns a list of incoming messages without the line break "\n"
 		for msg in incoming_msgs:
-			if len(msg) == self.flags_msg_length:
+			if msg.startswith("GETPARAM["):
+				self.extract_param(msg)
+			elif len(msg) == self.flags_msg_length:
 				self.extract_flags(msg)
 			elif len(msg) == self.set_single_param_msg_length:
 				self.ack_set_param(msg)
 
 	def run(self):
 		rospy.logdebug("SerialPortComm.run()")
+
+		self.open_serial_port(self.serial_port, self.serial_timeout)
+		self.initialize_gripper()
+
 		#read from port
 		connection_errors_no = 0
 		incoming_bytes_no = 0
@@ -290,7 +343,7 @@ class SerialPortComm(threading.Thread):
 					self.input_data_unavailable = 0
 					input_data = self.serial.read(self.serial.inWaiting())
 					data_str = input_data.decode('ascii') #read the bytes and convert from binary array to ASCII
-					if (incoming_bytes_no <> 22):
+					if (incoming_bytes_no != 22):
 						rospy.logdebug("incoming_bytes_no = %d: %s", incoming_bytes_no, data_str)
 					self.parse_incoming_data_block(data_str)
 				else:
