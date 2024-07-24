@@ -2,9 +2,10 @@
 <package format="2">
   <name>weiss_gripper_ieg76</name>
   <version>0.0.0</version>
-  <description>This is the ros package of the driver for the Weiss Robotics gripper, model IEG 55-020 and 76-030.</description>
+  <description>This is the ros package of the driver for the Weiss Robotics gripper, model IEG
+    55-020/76-030 as well as CRG 30-050/200-085.</description>
 
-  <maintainer email="philipp.tenbrock@ipa.fraunhofer.de">ipa-pgt</maintainer>
+  <maintainer email="lth@ipa.fraunhofer.de">ipa-lth</maintainer>
 
 
   <!-- One license tag required, multiple allowed, one license per tag -->
