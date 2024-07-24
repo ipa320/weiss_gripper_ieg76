@@ -1,3 +1,4 @@
 4. Add grasp service with tolerances
 6. Add dedicated thread for driver_logic flags observer
 10. Find USB port that is fitting for the given serial id
+11. Change name to reflect all supported grippers

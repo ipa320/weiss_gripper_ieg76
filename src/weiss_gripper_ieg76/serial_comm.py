@@ -167,7 +167,6 @@ class SerialPortComm(threading.Thread):
 
 		self.log_debug_flags()
 		try:
-			# print 'Out: ', payload
 			self.serial.write(payload)
 			rospy.logdebug("Message sent to serial port")
 		except SerialException as e:
