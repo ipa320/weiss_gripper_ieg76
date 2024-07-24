@@ -1,4 +1,5 @@
 float32 position
+bool relative
 ---
 bool success
 string message

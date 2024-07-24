@@ -29,7 +29,7 @@
         </link>
 
         <joint name="${prefix}toolside_joint" type="fixed" >
-          <origin xyz="0 0 0.01" rpy="0 0 0"/>
+          <origin xyz="0 0 0.01" rpy="0 0 -${pi/4}"/>
           <parent link="${prefix}robotside" />
           <child link="${prefix}toolside" />
         </joint>

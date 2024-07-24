@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<robot name="ieg76" xmlns:xacro="http://www.ros.org/wiki/xacro">
+<robot name="ieg55" xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-    <xacro:macro name="ieg76" params="parent prefix *origin">
+    <xacro:macro name="ieg55" params="parent prefix *origin">
         <joint name="${prefix}mount" type="fixed">
             <insert_block name="origin"/>
             <parent link="${parent}"/>
@@ -10,13 +10,12 @@
         <link name="${prefix}base">
             <inertial>
                 <origin xyz="0 0 0" rpy="0 0 0"/>
-                <mass value="0.73"/>
+                <mass value="0.27"/>
                 <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01" />
             </inertial>
             <visual>
-                <origin xyz="0 0 0" rpy="${pi/2.0} 0 0"/>
                 <geometry>
-                    <mesh filename="package://weiss_gripper_ieg76/meshes/ieg76.stl"/>
+                    <mesh filename="package://weiss_gripper_ieg76/meshes/ieg55.stl"/>
                 </geometry>
                 <material name="black">
                     <color rgba="0.2 0.2 0.2 1.0"/>
@@ -27,18 +26,18 @@
         <joint name="${prefix}jaw_position" type="prismatic">
             <parent link="${prefix}base"/>
             <child link="${prefix}finger_right"/>
-            <origin rpy="0.0 0.0 ${pi}" xyz="0.0 -0.0185 0.063"/>
+            <origin rpy="0.0 0.0 ${pi}" xyz="0.0 -0.0115 0.045"/>
             <axis xyz="1 0 0"/>
-            <limit effort="100.0" lower="0.0" upper="0.015" velocity="100.0"/>
+            <limit effort="100.0" lower="0.0" upper="0.01" velocity="100.0"/>
         </joint>
         <link name="${prefix}finger_right"/>
 
         <joint name="${prefix}jaw_position_mimic" type="prismatic">
             <parent link="${prefix}base"/>
             <child link="${prefix}finger_left"/>
-            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0185 0.063"/>
+            <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0115 0.045"/>
             <axis xyz="1 0 0"/>
-            <limit effort="100.0" lower="0.0" upper="0.015" velocity="100.0"/>
+            <limit effort="100.0" lower="0.0" upper="0.01" velocity="100.0"/>
             <mimic joint="${prefix}jaw_position" multiplier="1"/>
         </joint>
         <link name="${prefix}finger_left"/>
@@ -46,7 +45,7 @@
         <joint name="${prefix}center" type="fixed">
             <parent link="${parent}"/>
             <child link="${prefix}center"/>
-            <origin rpy="0 0 0" xyz="0 0 0.063"/>
+            <origin rpy="0 0 0" xyz="0 0 0.045"/>
         </joint>
         <link name="${prefix}center"/>
 

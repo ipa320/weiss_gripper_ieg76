@@ -1,5 +1,10 @@
 # weiss_gripper_ieg76
-This is the ROS package of the driver for the [Weiss Robotics gripper, model IEG 76-030](https://www.weiss-robotics.com/en/produkte/gripping-systems/integration-line-en/ieg-en/).
+This is the ROS package of the driver for several Weiss Robotics grippers:
+
+* [IEG 76-030](https://weiss-robotics.com/servo-electric/ieg-series/)
+* [IEG 55-020](https://weiss-robotics.com/servo-electric/ieg-series/)
+* [CRG 200-085](https://weiss-robotics.com/servo-electric/crg-series/)
+* [CRG 30-050](https://weiss-robotics.com/servo-electric/crg-series/)
 
  1. [Device Configurator Windows](#device-configurator-windows)
 	 1. [Installation](#installation)
